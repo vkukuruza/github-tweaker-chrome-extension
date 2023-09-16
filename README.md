@@ -1,4 +1,4 @@
-# <img src="public/icons/icon_48.png" width="45" align="left"> Github Pr List Enhancement
+# <img src="public/icons/icon_48.png" width="45" align="left"> GitHub Tweaker
 
 My Chrome Extension
 

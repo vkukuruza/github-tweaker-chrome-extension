@@ -1,7 +1,7 @@
 {
-  "name": "GitHub PR list enhancement",
+  "name": "GitHub Tweaker",
   "version": "0.1.0",
-  "description": "My Chrome Extension",
+  "description": "GitHub Tweaker",
   "private": true,
   "scripts": {
     "watch": "node ./node_modules/webpack/bin/webpack.js --mode=development --watch --config config/webpack.config.js",
