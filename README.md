@@ -1,11 +1,10 @@
-# <img src="public/icons/icon_48.png" width="45" align="left"> GitHub Tweaker
+# <img src="public/icons/github-mark.png" width="45" align="left"> GitHub Tweaker
 
-My Chrome Extension
+GitHub Tweaker
 
 ## Features
 
-- Feature 1
-- Feature 2
+- Enhance readability of GitHub 'Pull Requests' page by displaying branch sources
 
 ## Install
 
