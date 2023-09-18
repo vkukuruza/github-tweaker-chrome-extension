@@ -17,7 +17,7 @@
   "permissions": ["storage", "tabs"],
   "content_scripts": [
     {
-      "matches": ["https://github.com/*/pulls*"],
+      "matches": ["https://github.com/*"],
       "run_at": "document_idle",
       "js": ["contentScript.js"]
     }
