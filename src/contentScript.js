@@ -1,16 +1,13 @@
 "use strict";
 
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
-  if (request.message === "tweak") {
-    tweak();
-  }
-});
+let hrefs = [];
+let issues;
+let referenceNodesToModify = new Map();
 
 function tweak() {
-  var issues = getIssues();
-  var hrefs = getHrefs(issues);
+  collectData();
 
-  for (var i = 0; i < hrefs.length; i++) {
+  for (let i = 0; i < hrefs.length; i++) {
     makeRequest("GET", "https://github.com" + hrefs[i], function (err, data) {
       if (err) {
         throw err;
@@ -23,31 +20,52 @@ function tweak() {
 
       if (issueDiv != null && notExistsSourceElement(issueDiv)) {
         let referenceNode = getReferenceNode(issueDiv);
-        referenceNode.before(createSourceElement(baseBranch, comparingBranch));
+        referenceNode.replaceWith(getNewElement(issueNumber, baseBranch, comparingBranch));
       }
     });
   }
 }
 
-function getIssues() {
-  return document.getElementsByClassName(
-    "Box-row Box-row--focus-gray p-0 mt-0 js-navigation-item js-issue-row"
-  );
-}
-
-function getHrefs(issues) {
-  var hrefs = [];
+function collectData() {
+  getIssues();
 
   for (var i = 0; i < issues.length; i++) {
-    let href = issues[i]
+    collectHrefs(i);
+    collectReferenceNodesToModify(i);
+  }
+}
+
+function getIssues() {
+  issues =
+      document.getElementsByClassName(
+          "Box-row Box-row--focus-gray p-0 mt-0 js-navigation-item js-issue-row"
+      );
+}
+
+function collectHrefs(i) {
+  let href = issues[i]
       .getElementsByClassName("flex-auto min-width-0 p-2 pr-3 pr-md-2")[0]
       .getElementsByTagName("a")[0]
       .getAttribute("href");
+  hrefs.push(href);
+}
 
-    hrefs.push(href);
-  }
+function collectReferenceNodesToModify(i) {
+  let issueNumber = issues[i].getAttribute("id").split("_").pop();
+  let innerHtml=
+      issues[i]
+          .getElementsByClassName("flex-shrink-0 col-4 col-md-3 pt-2 text-right pr-3 no-wrap d-flex hide-sm")[0]
+          .innerHTML;
+  let newDiv = document.createElement("div");
+  newDiv.setAttribute("class", "flex-shrink-0 pt-2 text-right pr-3 no-wrap d-flex");
+  newDiv.innerHTML = innerHtml;
+  let mainDiv = document.createElement("div");
+  mainDiv.setAttribute("class", "col-4 col-md-3 hide-sm");
+  mainDiv.appendChild(newDiv);
 
-  return hrefs;
+
+  // console.log(mainDiv);
+  referenceNodesToModify.set(issueNumber, mainDiv);
 }
 
 function makeRequest(method, url, done) {
@@ -94,7 +112,7 @@ function getIssueDiv(issueNumber) {
 function notExistsSourceElement(issueDiv) {
   return (
     issueDiv
-      .getElementsByClassName("flex-auto min-width-0 p-2 pr-3 pr-md-2")[0]
+      .getElementsByClassName("col-4 col-md-3 hide-sm")[0]
       .getElementsByClassName(
         "lh-condensed-ultra color-fg-muted mt-1 mr-3 d-flex flex-items-center"
       ).length === 0
@@ -103,15 +121,25 @@ function notExistsSourceElement(issueDiv) {
 
 function getReferenceNode(issueDiv) {
   return issueDiv
-    .getElementsByClassName("flex-auto min-width-0 p-2 pr-3 pr-md-2")[0]
-    .getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0];
+    .getElementsByClassName("flex-shrink-0 col-4 col-md-3 pt-2 text-right pr-3 no-wrap d-flex hide-sm")[0]
+    // .getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0]
+      ;
+}
+
+function getNewElement(issueNumber, baseBranch, comparingBranch) {
+  let newElement = referenceNodesToModify.get(issueNumber);
+  let referenceNode=
+      newElement.getElementsByClassName("flex-shrink-0 pt-2 text-right pr-3 no-wrap d-flex");
+  newElement.appendChild(createSourceElement(baseBranch, comparingBranch));
+
+  return newElement;
 }
 
 function createSourceElement(baseBranch, comparingBranch) {
   let sourceElement = createDivElement();
-  sourceElement.appendChild(createSourceSpanElement(baseBranch));
-  sourceElement.appendChild(createArrowSpanElement("←"));
   sourceElement.appendChild(createSourceSpanElement(comparingBranch));
+  sourceElement.appendChild(createArrowSpanElement("→"));
+  sourceElement.appendChild(createSourceSpanElement(baseBranch));
 
   return sourceElement;
 }
@@ -122,6 +150,7 @@ function createDivElement() {
     "class",
     "lh-condensed-ultra color-fg-muted mt-1 mr-3 d-flex flex-items-center"
   );
+  divElement.setAttribute("style", 'float: right; padding-top: 4px;');
 
   return divElement;
 }
@@ -146,3 +175,10 @@ function createArrowSpanElement(innerText) {
 
   return spanElement;
 }
+
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  if (request.message === "tweak") {
+    console.log('tweak')
+    tweak();
+  }
+});
