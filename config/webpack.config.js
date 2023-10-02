@@ -10,6 +10,7 @@ const config = merge(common, {
   entry: {
     contentScript: PATHS.src + '/contentScript.js',
     background: PATHS.src + '/background.js',
+    options: PATHS.src + '/options.js'
   },
 });
 
