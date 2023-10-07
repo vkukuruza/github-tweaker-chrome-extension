@@ -1,4 +1,4 @@
-let tableRef;
+let table = document.getElementById("branchColorsTable");
 let branchCount = 0;
 
 chrome.storage.local.get(['branchColors'], function (items) {
@@ -10,7 +10,6 @@ chrome.storage.local.get(['branchColors'], function (items) {
             let backgroundColor = map.get(key).backgroundColor;
             let textColor = map.get(key).textColor;
             branchCount++;
-            tableRef = document.getElementById("branchColorsTable");
 
             addBranchRow(branchName, backgroundColor, textColor, branchCount);
         });
@@ -20,7 +19,7 @@ chrome.storage.local.get(['branchColors'], function (items) {
 });
 
 function addBranchRow(branchName, backgroundColor, textColor, index) {
-    let newRow = tableRef.insertRow(index);
+    let newRow = table.insertRow(index);
     newRow.setAttribute('id', branchName);
 
     addBranchNameCell(newRow, createBranchSpanElement(branchName, backgroundColor, textColor));
@@ -50,7 +49,7 @@ function getBranchColorStyle(backgroundColor, textColor) {
 
 function addBackgroundColorCell(newRow, branchName, backgroundColor) {
     let backgroundColorCell = newRow.insertCell(1);
-    backgroundColorCell.setAttribute('class', 'colorRow');
+    backgroundColorCell.setAttribute('class', 'colorColumn');
     let backgroundColorInput = document.createElement("input");
     backgroundColorInput.setAttribute('type', 'color');
     backgroundColorInput.setAttribute('value', backgroundColor);
@@ -75,7 +74,7 @@ function updateBranchColors(branchName) {
 
 function addTextColorCell(newRow, branchName, textColor) {
     let textColorCell = newRow.insertCell(2);
-    textColorCell.setAttribute('class', 'colorRow');
+    textColorCell.setAttribute('class', 'colorColumn');
     let textColorInput = document.createElement("input");
     textColorInput.setAttribute('type', 'color');
     textColorInput.setAttribute('value', textColor);
@@ -111,7 +110,7 @@ function removeBranchRow(branchName) {
 }
 
 function insertAddColorRow() {
-    let newRow = tableRef.insertRow(branchCount + 1);
+    let newRow = table.insertRow(branchCount + 1);
     newRow.setAttribute('id', 'addColor');
 
     addBranchNameInputCell(newRow);
@@ -180,5 +179,6 @@ function save() {
     }
 
     let branchColorsJSON = JSON.stringify(Object.fromEntries(branchColors));
-    chrome.storage.local.set({"branchColors": branchColorsJSON}).then(() => {});
+    chrome.storage.local.set({"branchColors": branchColorsJSON}).then(() => {
+    });
 }

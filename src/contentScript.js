@@ -16,6 +16,12 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 });
 
 function tweak() {
+    let windowUrl = window.location.href;
+
+    if (!windowUrl.includes('/pulls') || windowUrl.includes('github.com/pulls')) {
+        return;
+    }
+
     chrome.storage.local.get("branchColors", function (items) {
         let branchColorsJSON = Object.entries(JSON.parse(items.branchColors))
         branchColors = new Map(branchColorsJSON);
@@ -45,15 +51,12 @@ function collectURLs(pullRequestDiv) {
     let url = pullRequestDiv
         .getElementsByTagName("a")[0]
         .getAttribute("href");
-    console.log("url");
     urls.add(url);
 }
 
 function modifyTargetDIVS(pullRequestDiv) {
     let pullRequestNumber = pullRequestDiv.getAttribute("id").split("_").pop();
-    let targetDiv =
-        pullRequestDiv
-            .getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0];
+    let targetDiv = pullRequestDiv.getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0];
     let newChildDiv = document.createElement("div");
     newChildDiv.setAttribute("style", "display: inline-block;");
     newChildDiv.innerHTML = targetDiv.innerHTML;
@@ -89,7 +92,6 @@ function createHttpRequest(method, url) {
                 let baseBranch = getBaseBranch(xhr.response);
                 let comparingBranch = getComparingBranch(xhr.response);
                 branchMap.set(url, baseBranch + ":" + comparingBranch);
-                console.log('request');
             } else {
                 reject({
                     status: xhr.status,
@@ -125,8 +127,6 @@ function getComparingBranch(data) {
 
 function populateDOM() {
     Promise.all(promises).then(function () {
-        console.log('DONE');
-
         for (let url of urls) {
             let pullRequestNumber = url.split("/").pop();
             let pullRequestDiv = getPullRequestDiv(pullRequestNumber);
