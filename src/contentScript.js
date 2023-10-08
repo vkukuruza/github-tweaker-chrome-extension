@@ -1,6 +1,6 @@
 "use strict";
 
-let branchColors;
+let branchColors = new Map();
 let progress = 0;
 let progressDivs = [];
 let pullRequestDivs;
@@ -25,8 +25,10 @@ function tweak() {
     }
 
     chrome.storage.local.get("branchColors", function (items) {
+      if (items.branchColors) {
         let branchColorsJSON = Object.entries(JSON.parse(items.branchColors))
         branchColors = new Map(branchColorsJSON);
+      }
 
         insertProgressBar();
         collectData();
