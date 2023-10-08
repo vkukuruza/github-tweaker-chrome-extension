@@ -1,6 +1,8 @@
 "use strict";
 
 let branchColors;
+let progress = 0;
+let progressDivs = [];
 let pullRequestDivs;
 let urls = new Set();
 let branchMap = new Map();
@@ -26,10 +28,24 @@ function tweak() {
         let branchColorsJSON = Object.entries(JSON.parse(items.branchColors))
         branchColors = new Map(branchColorsJSON);
 
+        insertProgressBar();
         collectData();
         retrieveBranchMap();
         populateDOM();
     });
+}
+
+function insertProgressBar() {
+    progressDivs = [];
+    let progressInnerDiv = document.getElementsByClassName("table-list-header-toggle states flex-auto pl-0");
+    let progressDiv = document.createElement("progress");
+    progressDiv.setAttribute("id", "progressDiv");
+    progressDiv.setAttribute("value", "0");
+    progressDiv.setAttribute("style", "margin-left: 15px;vertical-align: middle;");
+    progressDivs.push(progressDiv);
+    progressDivs.push(progressDiv.cloneNode());
+    progressInnerDiv[0].appendChild(progressDivs[0]);
+    progressInnerDiv[1].appendChild(progressDivs[1]);
 }
 
 function collectData() {
@@ -38,6 +54,14 @@ function collectData() {
     for (let pullRequestDiv of pullRequestDivs) {
         collectURLs(pullRequestDiv);
         modifyTargetDIVS(pullRequestDiv);
+    }
+
+    populateProgressAttribute("max", urls.size);
+}
+
+function populateProgressAttribute(attributeName, value) {
+    for (let progressDiv of progressDivs) {
+        progressDiv.setAttribute(attributeName, value);
     }
 }
 
@@ -77,6 +101,9 @@ function retrieveBranchMap() {
     for (let url of urls) {
         if (!branchMap.has(url)) {
             promises.push(createHttpRequest("GET", url));
+        } else {
+            progress++;
+            populateProgressAttribute("value", progress);
         }
     }
 }
@@ -91,6 +118,8 @@ function createHttpRequest(method, url) {
                 resolve(xhr.response);
                 let baseBranch = getBaseBranch(xhr.response);
                 let comparingBranch = getComparingBranch(xhr.response);
+                progress ++;
+                populateProgressAttribute("value", progress);
                 branchMap.set(url, baseBranch + ":" + comparingBranch);
             } else {
                 reject({
@@ -140,6 +169,8 @@ function populateDOM() {
         }
 
         urls.clear();
+        progress = 0;
+        populateProgressAttribute("style", "display:none;");
     });
 }
 
