@@ -6,6 +6,8 @@
 
 # misc
 .DS_Store
+.idea
 
 npm-debug.log*
 size-plugin.json
+*.zip
