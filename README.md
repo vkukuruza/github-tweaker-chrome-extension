@@ -5,11 +5,12 @@ GitHub Tweaker
 ## Features
 
 - Enhance readability of GitHub 'Pull Requests' page by displaying branch sources
-- Colorize branches
+- Ability to colorize branches
+- Buttons to get Commits and Check list on 'Pull Requests' page
 
 ## Install
 
-[**Chrome** extension](https://chrome.google.com/webstore/detail/github-tweaker/apkgiakkjmmafaojinfjkaoihcilidbd?utm_source=ext_sidebar)
+[**Chrome** extension](https://chromewebstore.google.com/detail/github-tweaker/apkgiakkjmmafaojinfjkaoihcilidbd?hl=en-GB&utm_source=ext_sidebar)
 
 ## Contribution
 
