@@ -59,6 +59,9 @@ function tweak() {
 }
 
 function insertProgressBar() {
+    if (document.getElementById("progressDiv") !== null) {
+        return;
+    }
     progressDivs = [];
     let progressInnerDiv = document.getElementsByClassName("table-list-header-toggle states flex-auto pl-0");
     let progressDiv = document.createElement("progress");
