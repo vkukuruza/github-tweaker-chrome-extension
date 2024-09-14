@@ -1,17 +1,14 @@
 "use strict";
 
 const COMMIT_LIST_IMAGE_PATH = "M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z";
-const VALIDATION_LIST_IMAGE_PATH = "M2.5 1.75v11.5c0 .138.112.25.25.25h3.17a.75.75 0 0 1 0 1.5H2.75A1.75 1.75 0 0 1 1 13.25V1.75C1 .784 1.784 0 2.75 0h8.5C12.216 0 13 .784 13 1.75v7.736a.75.75 0 0 1-1.5 0V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13.274 9.537v-.001l-4.557 4.45a.75.75 0 0 1-1.055-.008l-1.943-1.95a.75.75 0 0 1 1.062-1.058l1.419 1.425 4.026-3.932a.75.75 0 1 1 1.048 1.074ZM4.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM4 7.75A.75.75 0 0 1 4.75 7h2a.75.75 0 0 1 0 1.5h-2A.75.75 0 0 1 4 7.75Z";
 const SPINNER = '<style>.spinner_ajPY{transform-origin:center;animation:spinner_AtaB .75s infinite linear}@keyframes spinner_AtaB{100%{transform:rotate(360deg)}}</style><path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" opacity=".25"/><path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" class="spinner_ajPY"/>';
-const BUTTON_STYLE = "vertical-align:millde;padding:0 3px;font-size:10px;cursor: pointer; background-color: var(--timelineBadge-bgColor, var(--color-timeline-badge-bg))"
+const BUTTON_STYLE = "vertical-align:millde;padding:0 3px;font-size:10px;cursor: pointer; background-color: var(--control-transparent-bgColor-hover, var(--color-action-list-item-default-hover-bg))"
 const TOP_BORDER_COLOR = "border-color:var(--borderColor-default, var(--color-border-default));"
-const TOP_BORDER_STYLE = "padding:16px;border-style:solid;border-width:1px 0 0 0;" + TOP_BORDER_COLOR;
+const TOP_BORDER_STYLE = "padding:12px 16px 16px;border-style:solid;border-width:1px 0 0 0;" + TOP_BORDER_COLOR;
 const ISSUE_PREFIX = "issue_";
 const BUTTON = "button_"
 const COMMIT_CONTENT_PREFIX = "commit_content_";
-const VALIDATION_CONTENT_PREFIX = "validation_content_";
 const COMMIT_BUTTON_PREFIX = COMMIT_CONTENT_PREFIX + BUTTON;
-const VALIDATION_BUTTON_PREFIX = VALIDATION_CONTENT_PREFIX + BUTTON;
 const DIV_ID = "id";
 const ON = "_on";
 const OFF = "_off";
@@ -25,7 +22,6 @@ let baseUrl;
 let branchMap = new Map();
 let modifiedTargetDivs = new Map();
 let promises = [];
-let validationButtons = new Set();
 
 let blockButtonAction = false;
 
@@ -81,22 +77,9 @@ function collectData() {
         collectURLs(pullRequestDiv);
         modifyTargetDIVS(pullRequestDiv);
         reassignCommitButtonOnClickAction(pullRequestDiv);
-        collectValidationButtons(pullRequestDiv);
     }
 
     populateProgressAttribute("max", urls.size);
-}
-
-function collectValidationButtons(pullRequestDiv) {
-    let pullRequestStatus =
-        pullRequestDiv.getElementsByClassName("tooltipped tooltipped-e")[0].getAttribute("aria-label");
-
-    if (
-        pullRequestStatus !== "Closed Pull Request" &&
-        pullRequestDiv.getElementsByClassName("d-inline-block mr-1").length > 0
-    ) {
-        validationButtons.add(pullRequestDiv.getAttribute(DIV_ID).split("_").pop())
-    }
 }
 
 function populateProgressAttribute(attributeName, value) {
@@ -174,6 +157,7 @@ function createHttpRequest(method, url) {
 function makeRequest(method, url, done) {
     let xhr = new XMLHttpRequest();
     xhr.open(method, url);
+    xhr.setRequestHeader("accept", "text/html");
     xhr.responseType = "document";
     xhr.onload = function () {
         done(null, xhr);
@@ -266,22 +250,6 @@ function createMainBranchSpanElement(baseBranch, comparingBranch, pullRequestNum
             })
     );
 
-    if (validationButtons.has(pullRequestNumber)) {
-        outerBranchSpanElement.appendChild(createEmptySpanElement());
-        outerBranchSpanElement.appendChild(
-            outerBranchSpanElement.appendChild(
-                createButton(
-                    "Validations",
-                    pullRequestNumber,
-                    VALIDATION_BUTTON_PREFIX,
-                    VALIDATION_LIST_IMAGE_PATH,
-                    function () {
-                        onClickValidationListButton(this);
-                    })
-            )
-        );
-    }
-
     return outerBranchSpanElement;
 }
 
@@ -327,13 +295,6 @@ function createTextSpanElement(innerText) {
     return textSpanElement;
 }
 
-function createEmptySpanElement() {
-    let emptySpanElement = document.createElement("span");
-    emptySpanElement.setAttribute("style", "padding: 1px;");
-
-    return emptySpanElement;
-}
-
 function reassignCommitButtonOnClickAction(pullRequestDiv) {
     let pullRequestNumber = pullRequestDiv.getAttribute(DIV_ID).split("_").pop();
     let existingCommitsButtonOff = document.getElementById(COMMIT_BUTTON_PREFIX + pullRequestNumber + OFF);
@@ -346,19 +307,6 @@ function reassignCommitButtonOnClickAction(pullRequestDiv) {
     } else if (existingCommitButtonOn) {
         existingCommitButtonOn.onclick = function () {
             onClickCommitsButton(this);
-        }
-    }
-
-    let existingValidationButtonOff = document.getElementById(VALIDATION_BUTTON_PREFIX + pullRequestNumber + OFF);
-    let existingValidationButtonOn = document.getElementById(VALIDATION_BUTTON_PREFIX + pullRequestNumber + ON);
-
-    if (existingValidationButtonOff) {
-        existingValidationButtonOff.onclick = function () {
-            onClickValidationListButton(this);
-        }
-    } else if (existingValidationButtonOn) {
-        existingValidationButtonOn.onclick = function () {
-            onClickValidationListButton(this);
         }
     }
 }
@@ -418,13 +366,14 @@ function onClickCommitsButton(button) {
                 throw err;
             }
             let response = xhr.response;
-            let commitsDiv = response.getElementsByClassName("js-navigation-container js-active-navigation-container")[0];
+            let commitsDiv = response.getElementsByClassName("Box-sc-g0xbh4-0 cIAPDV")[0];
             commitsDiv.setAttribute(DIV_ID, COMMIT_CONTENT_PREFIX + pullRequestNumber);
             commitsDiv.setAttribute("style", TOP_BORDER_STYLE);
+            Array.from(commitsDiv.getElementsByTagName('Button')).forEach(element => {element.remove()});
+
             let pullRequestDiv = document.getElementById(ISSUE_PREFIX + pullRequestNumber);
             pullRequestDiv.after(commitsDiv);
             button.setAttribute(DIV_ID, COMMIT_BUTTON_PREFIX + pullRequestNumber + ON);
-            removeConcurrentContent(VALIDATION_CONTENT_PREFIX, pullRequestNumber);
             unblockButton();
             turnOffSpinner(button, COMMIT_LIST_IMAGE_PATH);
         });
@@ -434,96 +383,6 @@ function onClickCommitsButton(button) {
             commitsDiv.remove();
         }
         button.setAttribute(DIV_ID, COMMIT_BUTTON_PREFIX + pullRequestNumber + OFF);
-    }
-}
-
-function onClickValidationListButton(button) {
-    let action = button.getAttribute(DIV_ID).split("_").pop();
-    let pullRequestNumber = button.getAttribute(DIV_ID).split("_")[3];
-    if (action === "off" && !isButtonBlocked()) {
-        blockButton();
-        turnOnSpinner(button);
-        makeRequest("GET", button.dataset.url + "/partials/merging", function (err, xhr) {
-            if (err) {
-                throw err;
-            }
-            let buildDivs = xhr.response.getElementsByClassName("merge-status-item d-flex flex-items-baseline");
-            if (buildDivs.length > 0) {
-                mapBuildList(buildDivs, pullRequestNumber);
-                removeConcurrentContent(COMMIT_CONTENT_PREFIX, pullRequestNumber);
-                button.setAttribute(DIV_ID, VALIDATION_BUTTON_PREFIX + pullRequestNumber + ON);
-                unblockButton();
-                turnOffSpinner(button, VALIDATION_LIST_IMAGE_PATH);
-            } else {
-                makeRequest("GET", button.dataset.url, function (err, xhr) {
-                    if (err) {
-                        throw err;
-                    }
-                    let viewDetailsButton = xhr.response.getElementsByClassName("TimelineItem js-details-container Details")[0];
-                    let eventId = viewDetailsButton.getAttribute(DIV_ID).split("-").pop();
-                    makeRequest("GET", button.dataset.url + "/partials/commit_status_checks?event_id=" + eventId, function (err, xhr) {
-                        if (err) {
-                            throw err;
-                        }
-                        let buildList = xhr.response.getElementsByClassName("d-flex flex-items-baseline Box-row");
-                        if (buildList && buildList.length > 0) {
-                            mapBuildList(buildList, pullRequestNumber);
-                            removeConcurrentContent(COMMIT_CONTENT_PREFIX, pullRequestNumber);
-                        } else {
-                            button.remove();
-                        }
-                        button.setAttribute(DIV_ID, VALIDATION_BUTTON_PREFIX + pullRequestNumber + ON);
-                        unblockButton();
-                        turnOffSpinner(button, VALIDATION_LIST_IMAGE_PATH);
-                    });
-                });
-            }
-        });
-    } else if (action === "on") {
-        let validationListDiv = document.getElementById(VALIDATION_CONTENT_PREFIX + pullRequestNumber);
-        if (validationListDiv) {
-            validationListDiv.remove();
-        }
-        button.setAttribute(DIV_ID, VALIDATION_BUTTON_PREFIX + pullRequestNumber + OFF);
-    }
-}
-
-function mapBuildList(buildList, pullRequestNumber) {
-    if (!buildList || buildList.length < 1) {
-        return;
-    }
-    let buildListDiv = document.createElement("div");
-    buildListDiv.setAttribute("style", TOP_BORDER_STYLE);
-    buildListDiv.setAttribute(DIV_ID, VALIDATION_CONTENT_PREFIX + pullRequestNumber);
-    let borderDiv = document.createElement("div");
-    borderDiv.setAttribute("style", "border-style:solid;border-width:1px;border-radius:6px;" + TOP_BORDER_COLOR);
-    buildListDiv.appendChild(borderDiv);
-
-    Array.from(buildList).forEach(function (element) {
-        let hrefs = element.getElementsByTagName("a");
-
-        if (hrefs && hrefs.length > 0) {
-            Array.from(hrefs).forEach(function (a) {
-                a.setAttribute("target", "_blank");
-            });
-        }
-
-        element.setAttribute("style", "padding:8px 8px;background-color:transparent;");
-        borderDiv.appendChild(element);
-    });
-
-    let pullRequestDiv = document.getElementById(ISSUE_PREFIX + pullRequestNumber);
-    pullRequestDiv.after(buildListDiv);
-}
-
-function removeConcurrentContent(idPrefix, pullRequestNumber) {
-    let contentDiv = document.getElementById(idPrefix + pullRequestNumber);
-    if (contentDiv) {
-        contentDiv.remove();
-        let button = document.getElementById(idPrefix + BUTTON + pullRequestNumber + ON);
-        if (button) {
-            button.setAttribute(DIV_ID, idPrefix + BUTTON + pullRequestNumber + OFF);
-        }
     }
 }
 
