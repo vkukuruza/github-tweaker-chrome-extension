@@ -4,7 +4,7 @@ const COMMIT_LIST_IMAGE_PATH = "M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0
 const SPINNER = '<style>.spinner_ajPY{transform-origin:center;animation:spinner_AtaB .75s infinite linear}@keyframes spinner_AtaB{100%{transform:rotate(360deg)}}</style><path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" opacity=".25"/><path d="M10.14,1.16a11,11,0,0,0-9,8.92A1.59,1.59,0,0,0,2.46,12,1.52,1.52,0,0,0,4.11,10.7a8,8,0,0,1,6.66-6.61A1.42,1.42,0,0,0,12,2.69h0A1.57,1.57,0,0,0,10.14,1.16Z" class="spinner_ajPY"/>';
 const BUTTON_STYLE = "vertical-align:millde;padding:0 3px;font-size:10px;cursor: pointer; background-color: var(--control-transparent-bgColor-hover, var(--color-action-list-item-default-hover-bg))"
 const TOP_BORDER_COLOR = "border-color:var(--borderColor-default, var(--color-border-default));"
-const TOP_BORDER_STYLE = "padding:12px 16px 16px;border-style:solid;border-width:1px 0 0 0;" + TOP_BORDER_COLOR;
+const TOP_BORDER_STYLE = "padding:12px 16px 12px 9px;border-style:solid;border-width:1px 0 0 0;" + TOP_BORDER_COLOR;
 const ISSUE_PREFIX = "issue_";
 const BUTTON = "button_"
 const COMMIT_CONTENT_PREFIX = "commit_content_";
@@ -366,7 +366,8 @@ function onClickCommitsButton(button) {
                 throw err;
             }
             let response = xhr.response;
-            let commitsDiv = response.getElementsByClassName("Box-sc-g0xbh4-0 cIAPDV")[0];
+            applyCommitsStyle(response);
+            let commitsDiv = response.querySelector('[data-testid="commits-list"]');
             commitsDiv.setAttribute(DIV_ID, COMMIT_CONTENT_PREFIX + pullRequestNumber);
             commitsDiv.setAttribute("style", TOP_BORDER_STYLE);
             Array.from(commitsDiv.getElementsByTagName('Button')).forEach(element => {element.remove()});
@@ -384,6 +385,28 @@ function onClickCommitsButton(button) {
         }
         button.setAttribute(DIV_ID, COMMIT_BUTTON_PREFIX + pullRequestNumber + OFF);
     }
+}
+
+function applyCommitsStyle(response) {
+    response.head.childNodes.forEach(node => {
+        if (node.tagName === "LINK") {
+            document.head.appendChild(node);
+        }
+    });
+    response.querySelectorAll("svg").forEach(svg => {
+        const parentDiv = svg.parentElement;
+
+        if (parentDiv && parentDiv.tagName === "DIV") {
+            parentDiv.style.background = "white";
+        }
+    });
+    response.querySelectorAll('[data-testid="author-avatar"]').forEach(div => {
+        div.lastChild.style.color = "#59636e";
+    })
+    response.querySelector('[data-testid="commits-list"]').firstChild.firstChild.childNodes
+        .forEach((node, index) => {
+            node.style.padding = index === 0 ? "0 0 4px 0" : "4px 0";
+        });
 }
 
 function turnOnSpinner(element) {
