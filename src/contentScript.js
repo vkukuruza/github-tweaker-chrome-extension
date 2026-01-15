@@ -172,7 +172,7 @@ function makeRequest(method, url, done) {
 function getBaseBranch(data) {
     return data
         .getElementsByClassName("flex-auto min-width-0 mb-2")[0]
-        .getElementsByClassName("css-truncate-target")[1].innerText;
+        .getElementsByClassName("css-truncate-target")[0].innerText;
 }
 
 function getComparingBranch(data) {
