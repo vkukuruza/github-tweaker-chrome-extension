@@ -39,6 +39,7 @@ function tweak() {
     if (!windowUrl.includes("/pulls") || windowUrl.includes("github.com/pulls")) {
         return;
     }
+    window.initializeColorPickerSupport();
     baseUrl = windowUrl.substring(0, windowUrl.lastIndexOf("/"));
 
     chrome.storage.local.get("branchColors", function (items) {
@@ -260,15 +261,20 @@ function createBranchSpanElement(branchName) {
     );
     branchSpanElement.setAttribute("title", branchName);
     branchSpanElement.setAttribute("style", getBranchColorStyle(branchName));
+    branchSpanElement.dataset.branchName = branchName;
+    branchSpanElement.addEventListener("click", function (event) {
+        event.stopPropagation();
+        window.openBranchColorPicker(event.currentTarget, branchName, branchColors, getBranchColorStyle, persistBranchColors);
+    });
 
     branchSpanElement.appendChild(document.createTextNode(branchName));
 
     return branchSpanElement;
 }
 
-function getBranchColorStyle(branchName) {
-    let backgroundColor = branchColors.get(branchName)?.backgroundColor;
-    let textColor = branchColors.get(branchName)?.textColor;
+function getBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
     let style = "";
 
     if (backgroundColor && textColor) {
@@ -411,3 +417,9 @@ function blockButton() {
 function unblockButton() {
     blockButtonAction = false;
 }
+
+function persistBranchColors() {
+    let branchColorsJSON = JSON.stringify(Object.fromEntries(branchColors));
+    chrome.storage.local.set({"branchColors": branchColorsJSON});
+}
+

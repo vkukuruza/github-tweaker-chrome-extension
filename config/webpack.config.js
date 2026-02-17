@@ -8,6 +8,7 @@ const PATHS = require('./paths');
 // Merge webpack configuration files
 const config = merge(common, {
   entry: {
+    colorPicker: PATHS.src + '/colorPicker.js',
     contentScript: PATHS.src + '/contentScript.js',
     background: PATHS.src + '/background.js',
     options: PATHS.src + '/options.js'
