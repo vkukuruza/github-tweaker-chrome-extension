@@ -170,19 +170,11 @@ function makeRequest(method, url, done) {
 }
 
 function getBaseBranch(data) {
-    return data
-        .getElementsByClassName("flex-auto min-width-0 mb-2")[0]
-        .getElementsByClassName("css-truncate-target")[0].innerText;
+    return data.querySelectorAll('[class*="prc-BranchName-BranchName"]')[0].innerHTML;
 }
 
 function getComparingBranch(data) {
-    return data
-        .getElementsByClassName("flex-auto min-width-0 mb-2")[0]
-        .getElementsByClassName("css-truncate-target")[
-    data
-        .getElementsByClassName("flex-auto min-width-0 mb-2")[0]
-        .getElementsByClassName("css-truncate-target").length - 1
-        ].innerText;
+    return data.querySelectorAll('[class*="prc-BranchName-BranchName"]')[1].innerHTML;
 }
 
 function populateDOM() {
