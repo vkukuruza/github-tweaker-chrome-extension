@@ -385,20 +385,9 @@ function applyCommitsStyle(response) {
             document.head.appendChild(node);
         }
     });
-    response.querySelectorAll("svg").forEach(svg => {
-        const parentDiv = svg.parentElement;
-
-        if (parentDiv && parentDiv.tagName === "DIV") {
-            parentDiv.style.background = "white";
-        }
-    });
     response.querySelectorAll('[data-testid="author-avatar"]').forEach(div => {
         div.lastChild.style.color = "#59636e";
     })
-    response.querySelector('[data-testid="commits-list"]').firstChild.firstChild.childNodes
-        .forEach((node, index) => {
-            node.style.padding = index === 0 ? "0 0 4px 0" : "4px 0";
-        });
 }
 
 function turnOnSpinner(element) {
