@@ -213,7 +213,6 @@ function notExistsSourceElement(pullRequestDiv) {
 
 function getDivToReplace(pullRequestDiv) {
     return pullRequestDiv
-        .getElementsByClassName("flex-auto min-width-0 p-2 pr-3 pr-md-2")[0]
         .getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0];
 }
 
