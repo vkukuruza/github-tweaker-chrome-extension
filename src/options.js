@@ -221,9 +221,12 @@ function exportBranchColors() {
         let blob = new Blob([data], {type: 'application/json'});
         let url = URL.createObjectURL(blob);
 
+        let now = new Date();
+        let dateStr = now.toISOString().split('T')[0];
+
         let a = document.createElement('a');
         a.href = url;
-        a.download = 'github-tweaker-branch-colors.json';
+        a.download = `github-tweaker-branch-colors-${dateStr}.json`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
