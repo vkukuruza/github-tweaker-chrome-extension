@@ -6,6 +6,13 @@
     <style>
         body {
             background-color: #f6f6f6;
+            color: #24292f;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        body.dark-mode {
+            background-color: #0c1117;
+            color: #e6edf3;
         }
 
         table {
@@ -16,6 +23,12 @@
             padding-bottom: 40px;
             background-color: white;
             border-radius: 10px;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        body.dark-mode table {
+            background-color: #161b22;
+            box-shadow: 0 8px 24px rgba(1, 4, 9, 0.4);
         }
 
         th {
@@ -26,6 +39,10 @@
         a {
             cursor: pointer;
             color: darkblue;
+        }
+
+        body.dark-mode a {
+            color: #58a6ff;
         }
 
         span {
@@ -82,14 +99,245 @@
             font: 3em/0.1 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
         }
 
+        body.dark-mode .title {
+            color: #e6edf3;
+        }
+
         .logo {
             vertical-align: middle;
             padding: 15px;
         }
+
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background-color: #2da44e;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font: 0.9em/1.5 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            visibility: hidden;
+            transition: transform 0.3s ease, opacity 0.3s ease, visibility 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .toast.error {
+            background-color: #cf222e;
+        }
+
+        .toast-icon {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+        /* Export/Import buttons */
+        .actions-bar {
+            width: 1000px;
+            margin: 20px auto 0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .view-toggle {
+            width: 1000px;
+            margin: 0 auto 10px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            font: 400 12px/1.5 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+        }
+
+        .view-toggle span {
+            font-weight: 400;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: 1px solid #d0d7de;
+            background-color: #f6f8fa;
+            color: #24292f;
+            font: 400 12px/1.5 ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .action-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .action-btn:hover {
+            background-color: #e8ebef;
+        }
+
+        body.dark-mode .action-btn {
+            background-color: #1f2a37;
+            border-color: #30363d;
+            color: #e6edf3;
+        }
+
+        body.dark-mode .action-btn:hover {
+            background-color: #283342;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #8c959f;
+            transition: 0.2s;
+            border-radius: 999px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: #f6f8fa;
+            transition: 0.2s;
+            border-radius: 50%;
+        }
+
+        .switch input:checked + .slider {
+            background-color: #2da44e;
+        }
+
+        .switch input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        body.dark-mode .switch input:checked + .slider {
+            background-color: #388bfd;
+        }
+
+        body.dark-mode .slider:before {
+            background-color: #0c1117;
+        }
+
+        body.dark-mode th,
+        body.dark-mode td,
+        body.dark-mode .view-toggle {
+            color: #e6edf3;
+        }
+
+        body.dark-mode input[type="text"] {
+            border-bottom-color: #59636e;
+            color: #e6edf3;
+            background: transparent;
+        }
+
+        body.dark-mode .errorCell {
+            color: #ff9b95;
+        }
+
+        /* Spinner overlay styles */
+        .spinner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        body.dark-mode .spinner-overlay {
+            background-color: rgba(12, 17, 23, 0.7);
+        }
+
+        .spinner-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-top: 4px solid #2da44e;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        body.dark-mode .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #388bfd;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
+<div id="spinnerOverlay" class="spinner-overlay">
+    <div class="spinner"></div>
+</div>
+
+<div id="toast" class="toast">
+    <svg class="toast-icon" viewBox="0 0 16 16">
+        <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+    </svg>
+    <span id="toastMessage">Settings saved</span>
+</div>
+
 <div class="title"><img class="logo" src="icons/github-mark.png" height="48" width="48">GitHub Tweaker Color Options
+</div>
+<div class="view-toggle">
+    <span>light theme</span>
+    <label class="switch">
+        <input type="checkbox" id="darkModeToggle">
+        <span class="slider"></span>
+    </label>
+    <span class="toggle-caption">dark theme</span>
 </div>
 <table id="branchColorsTable">
     <tr>
@@ -99,6 +347,25 @@
         <th class="buttonColumn"></th>
     </tr>
 </table>
+
+<div class="actions-bar">
+    <input type="file" id="importFile" class="file-input" accept=".json">
+    <button class="action-btn" id="importBtn">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"></path>
+            <path d="M11.78 4.72a.749.749 0 1 1-1.06 1.06L8.75 3.811V9.5a.75.75 0 0 1-1.5 0V3.811L5.28 5.78a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25Z"></path>
+        </svg>
+         Import
+     </button>
+     <button class="action-btn" id="exportBtn">
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"></path>
+            <path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"></path>
+        </svg>
+         Export
+     </button>
+</div>
+
 <script type="text/javascript" src="options.js"></script>
 
 </body>

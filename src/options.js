@@ -1,8 +1,10 @@
 let table = document.getElementById("branchColorsTable");
 let branchCount = 0;
+let body = document.body;
+let darkModeToggle = document.getElementById("darkModeToggle");
 
-chrome.storage.local.get(['branchColors'], function (items) {
-    if (Object.keys(items).length > 0) {
+chrome.storage.local.get(['branchColors', 'optionsDarkMode'], function (items) {
+    if (Object.keys(items).length > 0 && items.branchColors) {
         let branchColorsJSON = Object.entries(JSON.parse(items.branchColors))
         let branchColors = new Map(branchColorsJSON);
         branchColors.forEach(function (value, key, map) {
@@ -15,8 +17,19 @@ chrome.storage.local.get(['branchColors'], function (items) {
         });
     }
 
+    applyDarkMode(!!items.optionsDarkMode);
+    darkModeToggle.checked = !!items.optionsDarkMode;
     insertAddColorRow();
 });
+
+darkModeToggle.addEventListener('change', function () {
+    applyDarkMode(this.checked);
+    chrome.storage.local.set({"optionsDarkMode": this.checked});
+});
+
+function applyDarkMode(enabled) {
+    body.classList.toggle('dark-mode', enabled);
+}
 
 function addBranchRow(branchName, backgroundColor, textColor, index) {
     let newRow = table.insertRow(index);
@@ -181,4 +194,82 @@ function save() {
     let branchColorsJSON = JSON.stringify(Object.fromEntries(branchColors));
     chrome.storage.local.set({"branchColors": branchColorsJSON}).then(() => {
     });
+}
+
+function showToast(message = 'Settings saved', isError = false) {
+    let toast = document.getElementById('toast');
+    let toastMessage = document.getElementById('toastMessage');
+
+    toastMessage.textContent = message;
+    toast.classList.toggle('error', isError);
+    toast.classList.add('show');
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 5000);
+}
+
+document.getElementById('exportBtn').addEventListener('click', exportBranchColors);
+document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', importBranchColors);
+
+function exportBranchColors() {
+    chrome.storage.local.get(['branchColors'], function (items) {
+        let data = items.branchColors || '{}';
+        let blob = new Blob([data], {type: 'application/json'});
+        let url = URL.createObjectURL(blob);
+
+        let a = document.createElement('a');
+        a.href = url;
+        a.download = 'github-tweaker-branch-colors.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+}
+
+function importBranchColors(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    showSpinner();
+
+    let reader = new FileReader();
+    reader.onload = function (e) {
+        try {
+            let data = JSON.parse(e.target.result);
+
+            if (typeof data !== 'object') {
+                throw new Error('Invalid format');
+            }
+
+            for (let key in data) {
+                if (!data[key].backgroundColor || !data[key].textColor) {
+                    throw new Error('Invalid branch color format');
+                }
+            }
+
+            chrome.storage.local.set({"branchColors": JSON.stringify(data)}).then(() => {
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            });
+        } catch (error) {
+            hideSpinner();
+            showToast('Invalid configuration file', true);
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function showSpinner() {
+    document.getElementById('spinnerOverlay').classList.add('show');
+}
+
+function hideSpinner() {
+    document.getElementById('spinnerOverlay').classList.remove('show');
 }

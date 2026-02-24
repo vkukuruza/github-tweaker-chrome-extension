@@ -39,6 +39,7 @@ function tweak() {
     if (!windowUrl.includes("/pulls") || windowUrl.includes("github.com/pulls")) {
         return;
     }
+    window.initializeColorPickerSupport();
     baseUrl = windowUrl.substring(0, windowUrl.lastIndexOf("/"));
 
     chrome.storage.local.get("branchColors", function (items) {
@@ -212,7 +213,6 @@ function notExistsSourceElement(pullRequestDiv) {
 
 function getDivToReplace(pullRequestDiv) {
     return pullRequestDiv
-        .getElementsByClassName("flex-auto min-width-0 p-2 pr-3 pr-md-2")[0]
         .getElementsByClassName("d-flex mt-1 text-small color-fg-muted")[0];
 }
 
@@ -260,15 +260,20 @@ function createBranchSpanElement(branchName) {
     );
     branchSpanElement.setAttribute("title", branchName);
     branchSpanElement.setAttribute("style", getBranchColorStyle(branchName));
+    branchSpanElement.dataset.branchName = branchName;
+    branchSpanElement.addEventListener("click", function (event) {
+        event.stopPropagation();
+        window.openBranchColorPicker(event.currentTarget, branchName, branchColors, getBranchColorStyle, persistBranchColors);
+    });
 
     branchSpanElement.appendChild(document.createTextNode(branchName));
 
     return branchSpanElement;
 }
 
-function getBranchColorStyle(branchName) {
-    let backgroundColor = branchColors.get(branchName)?.backgroundColor;
-    let textColor = branchColors.get(branchName)?.textColor;
+function getBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
     let style = "";
 
     if (backgroundColor && textColor) {
@@ -385,20 +390,9 @@ function applyCommitsStyle(response) {
             document.head.appendChild(node);
         }
     });
-    response.querySelectorAll("svg").forEach(svg => {
-        const parentDiv = svg.parentElement;
-
-        if (parentDiv && parentDiv.tagName === "DIV") {
-            parentDiv.style.background = "white";
-        }
-    });
     response.querySelectorAll('[data-testid="author-avatar"]').forEach(div => {
         div.lastChild.style.color = "#59636e";
     })
-    response.querySelector('[data-testid="commits-list"]').firstChild.firstChild.childNodes
-        .forEach((node, index) => {
-            node.style.padding = index === 0 ? "0 0 4px 0" : "4px 0";
-        });
 }
 
 function turnOnSpinner(element) {
@@ -422,3 +416,9 @@ function blockButton() {
 function unblockButton() {
     blockButtonAction = false;
 }
+
+function persistBranchColors() {
+    let branchColorsJSON = JSON.stringify(Object.fromEntries(branchColors));
+    chrome.storage.local.set({"branchColors": branchColorsJSON});
+}
+
