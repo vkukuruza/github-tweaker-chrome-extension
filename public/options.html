@@ -57,9 +57,25 @@
 
         input[type="color"] {
             background: none;
-            border: 0;
+            border: 1px solid #d0d7de;
             cursor: pointer;
             padding: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+        }
+
+        body.dark-mode input[type="color"] {
+            border-color: #30363d;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none;
+            border-radius: 3px;
         }
 
         input[type="text"] {
