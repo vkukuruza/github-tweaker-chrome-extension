@@ -34,6 +34,11 @@ const PR_HEADER_BRANCHES_CONTAINER_SELECTOR = 'div[class*="PullRequestHeaderBran
 // ".base-ref"/".head-ref" span, which itself wraps the actual
 // ".css-truncate-target" text span.
 const PR_TIMELINE_BRANCH_CLASS = "ght-pr-timeline-branch-ref";
+// Marker class for the branch name shown on each row of a repo's Actions
+// workflow runs list (classic, pre-React markup: a plain "<a class='branch-name
+// css-truncate css-truncate-target'>" link to that branch's tree, appearing
+// twice per row - once for narrow/mobile layouts, once for wide ones).
+const ACTIONS_BRANCH_CLASS = "ght-actions-branch-ref";
 
 let branchColors = new Map();
 let progress = 0;
@@ -94,26 +99,30 @@ function removeAllCommitsContent() {
 // We also piggyback on this same observer to self-heal any branch info/skeletons
 // that GitHub's own React re-renders may have wiped out (see restoreBranchInfo),
 // and to colorize (read-only, no picker) branch names inside GitHub's own PR
-// hovercard, the individual PR page's header, and its conversation timeline as
-// soon as they're rendered (see colorizeHovercardBranches/
-// colorizePrHeaderBranches/colorizePrTimelineBranches).
+// hovercard, the individual PR page's header, its conversation timeline, and a
+// repo's Actions workflow runs list, as soon as they're rendered (see
+// colorizeHovercardBranches/colorizePrHeaderBranches/colorizePrTimelineBranches/
+// colorizeActionsBranches).
 new MutationObserver(function () {
     tweakIfUrlChanged();
     restoreBranchInfo();
     colorizeHovercardBranches();
     colorizePrHeaderBranches();
     colorizePrTimelineBranches();
+    colorizeActionsBranches();
 }).observe(document.body, {childList: true, subtree: true});
 window.addEventListener("popstate", tweakIfUrlChanged);
 
-// The PR hovercard and an individual PR page's header/timeline aren't part of
-// the Pull Requests list, so they're not covered by tweak() above (which only
-// runs for "/pulls" URLs) - load branchColors independently and run an initial
-// pass in case any of them is already present on page load.
+// The PR hovercard, an individual PR page's header/timeline, and a repo's
+// Actions workflow runs list aren't part of the Pull Requests list, so they're
+// not covered by tweak() above (which only runs for "/pulls" URLs) - load
+// branchColors independently and run an initial pass in case any of them is
+// already present on page load.
 loadBranchColorsThen(function () {
     colorizeHovercardBranches();
     colorizePrHeaderBranches();
     colorizePrTimelineBranches();
+    colorizeActionsBranches();
 });
 
 // Loads branchColors from storage, then runs the given callback. Shared by
@@ -829,10 +838,7 @@ function createBranchSpanElement(branchName) {
     // Override it inline (higher specificity than the class) to vertically
     // center it instead. The ".css-truncate"/".css-truncate-target" classes also
     // nudge things slightly off, hence the small "top" correction on top of that.
-    branchSpanElement.setAttribute(
-        "style",
-        "vertical-align:middle;position:relative;top:-1px;" + getBranchColorStyle(branchName)
-    );
+    branchSpanElement.setAttribute("style", getBranchColorStyle(branchName));
     branchSpanElement.dataset.branchName = branchName;
     branchSpanElement.addEventListener("click", function (event) {
         event.stopPropagation();
@@ -847,7 +853,17 @@ function createBranchSpanElement(branchName) {
 function getBranchColorStyle(branchName, backgroundOverride, textOverride) {
     let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
     let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
-    let style = "";
+    // GitHub's own ".commit-ref" class sets "vertical-align: top", which - since
+    // vertical-align is not an inherited property - pushes this pill to the top
+    // of the (taller) line box instead of aligning it with the surrounding text.
+    // Override it inline (higher specificity than the class) to vertically
+    // center it instead. The ".css-truncate"/".css-truncate-target" classes also
+    // nudge things slightly off, hence the small "top" correction on top of that.
+    // Baked in here (rather than only applied once at element creation) so it
+    // survives every restyle - e.g. the color picker's "default"/live-update
+    // paths, which overwrite this element's whole "style" attribute via this
+    // same function - instead of only the very first one.
+    let style = "vertical-align:middle;position:relative;top:-1px;";
 
     if (backgroundColor && textColor) {
         style += "background-color: " + backgroundColor + "; color: " + textColor + ";";
@@ -886,8 +902,12 @@ function getPrHeaderBranchColorStyle(branchName, backgroundOverride, textOverrid
     let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
     let style = "";
 
+    // No "border-radius"/"padding" here (unlike the other style functions'
+    // pill look) - this link sits inline in the PR header's own text, and the
+    // added horizontal padding was inflating its box beyond the surrounding
+    // text's line height, making it visibly taller than its neighbors.
     if (backgroundColor && textColor) {
-        style += "background-color: " + backgroundColor + "; color: " + textColor + "; border-radius: 6px; padding: 0 6px;";
+        style += "background-color: " + backgroundColor + "; color: " + textColor + ";";
     }
 
     return style;
@@ -909,12 +929,32 @@ function getPrTimelineBranchColorStyle(branchName, backgroundOverride, textOverr
     return style;
 }
 
+// Same idea again, but for the branch name link on each row of a repo's Actions
+// workflow runs list (see ACTIONS_BRANCH_CLASS above). This one already renders
+// with GitHub's own default pill look (background/padding/border-radius) baked
+// into its ".branch-name" class, plus an inline "max-width" it relies on for its
+// "css-truncate-target" ellipsis truncation to kick in (same idea as the
+// hovercard chips) - so, as there, only add color and preserve that max-width,
+// letting the class supply padding/border-radius as normal.
+function getActionsBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
+    let style = "max-width: 200px;";
+
+    if (backgroundColor && textColor) {
+        style += "background-color: " + backgroundColor + "; color: " + textColor + ";";
+    }
+
+    return style;
+}
+
 // The color picker (opened only from our own PR list branch pills) restyles
 // every element sharing a given branch name, including read-only colorized
 // branches elsewhere on the page (GitHub's own PR hovercard, an individual PR
-// page's header, and its conversation timeline) - each of which needs a
-// different style computation (see getHovercardBranchColorStyle()/
-// getPrHeaderBranchColorStyle()/getPrTimelineBranchColorStyle() above). Dispatch
+// page's header, its conversation timeline, and the Actions workflow runs list)
+// - each of which needs a different style computation (see
+// getHovercardBranchColorStyle()/getPrHeaderBranchColorStyle()/
+// getPrTimelineBranchColorStyle()/getActionsBranchColorStyle() above). Dispatch
 // on the element actually being recolored rather than baking one style function
 // in at the call site, so a single color change re-styles every matching
 // element correctly.
@@ -927,6 +967,9 @@ function computeBranchElementStyle(element, branchName, backgroundOverride, text
     }
     if (element.classList.contains(PR_TIMELINE_BRANCH_CLASS)) {
         return getPrTimelineBranchColorStyle(branchName, backgroundOverride, textOverride);
+    }
+    if (element.classList.contains(ACTIONS_BRANCH_CLASS)) {
+        return getActionsBranchColorStyle(branchName, backgroundOverride, textOverride);
     }
     return getBranchColorStyle(branchName, backgroundOverride, textOverride);
 }
@@ -956,17 +999,33 @@ function colorizeHovercardBranches() {
 // each branch's file tree. Recolor them (read-only, no picker) - a normal click
 // still navigates through to the branch as usual, since we don't attach any
 // listener here.
+//
+// A merged/closed PR also gets a second such link later on, in the "Pull
+// request successfully merged and closed ... the <branch> branch can be safely
+// deleted" merge box - a separate React component (class prefix
+// "ClosedOrMergedStateMergeBox-module__branchName") that renders in after a
+// short delay (likely its own lazy-loaded fetch), well after the initial
+// MutationObserver passes over the header above have already run. Match it too.
+//
+// A repo's own branch/tree page ("github.com/<owner>/<repo>/tree/<branch>") can
+// also show a "This branch is N commits behind/ahead of <base>." bar (only
+// present sometimes - e.g. when the branch actually is behind/ahead), which
+// renders that same generic "BranchName" component again, but this time as a
+// plain (non-link) "<span>" rather than an "<a>". Match it too, by its own
+// "branch-info-bar" container instead of requiring an "<a>".
 function colorizePrHeaderBranches() {
     let selector = PR_HEADER_BRANCHES_CONTAINER_SELECTOR
-        + ' a[data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + ')';
-    document.querySelectorAll(selector).forEach(function (link) {
-        let branchName = link.textContent.trim();
+        + ' a[data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + '), '
+        + 'a[class*="ClosedOrMergedStateMergeBox-module__branchName"][data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + '), '
+        + '[data-testid="branch-info-bar"] [data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + ')';
+    document.querySelectorAll(selector).forEach(function (element) {
+        let branchName = element.textContent.trim();
         if (!branchName) {
             return;
         }
-        link.classList.add(PR_HEADER_BRANCH_CLASS);
-        link.dataset.branchName = branchName;
-        link.setAttribute("style", getPrHeaderBranchColorStyle(branchName));
+        element.classList.add(PR_HEADER_BRANCH_CLASS);
+        element.dataset.branchName = branchName;
+        element.setAttribute("style", getPrHeaderBranchColorStyle(branchName));
     });
 }
 
@@ -1006,6 +1065,25 @@ function colorizePrTimelineBranches() {
             nested.style.backgroundColor = "transparent";
             nested.style.color = "inherit";
         });
+    });
+}
+
+// A repo's Actions workflow runs list shows each run's branch as a plain link
+// to that branch's tree (see ACTIONS_BRANCH_CLASS above), rendered twice per
+// row - once for narrow/mobile layouts, once for wide ones - both matched the
+// same way here. Recolor them (read-only, no picker) - a normal click still
+// navigates through to the branch as usual, since we don't attach any listener
+// here.
+function colorizeActionsBranches() {
+    let selector = 'a.branch-name.css-truncate-target:not(.' + ACTIONS_BRANCH_CLASS + ')';
+    document.querySelectorAll(selector).forEach(function (link) {
+        let branchName = (link.getAttribute("title") || link.textContent).trim();
+        if (!branchName) {
+            return;
+        }
+        link.classList.add(ACTIONS_BRANCH_CLASS);
+        link.dataset.branchName = branchName;
+        link.setAttribute("style", getActionsBranchColorStyle(branchName));
     });
 }
 
