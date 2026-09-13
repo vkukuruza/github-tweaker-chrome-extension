@@ -18,12 +18,35 @@ const OFF = "_off";
 // Selector for a PR row in GitHub's newer React-based Pull Requests list UI
 // (CSS Modules class names get a random hash suffix, hence the `*=` match).
 const NEW_UI_ROW_SELECTOR = 'li[class*="PullsListItem-module__listItem"]';
+// Marker class for the base/head branch names inside GitHub's own PR hovercard
+// (the popup that appears when hovering a PR title link). Distinguishes them from
+// our own branch pills in the PR list, which need a different (non-truncating)
+// style computation - see computeBranchElementStyle().
+const HOVERCARD_BRANCH_CLASS = "ght-hovercard-branch-ref";
+// Marker class for the base/head branch names inside an individual PR page's own
+// header ("<user> merged/wants to merge ... into <base> from <head>").
+const PR_HEADER_BRANCH_CLASS = "ght-pr-header-branch-ref";
+// CSS Modules class names get a random hash suffix, hence the `*=` match.
+const PR_HEADER_BRANCHES_CONTAINER_SELECTOR = 'div[class*="PullRequestHeaderBranches-module__branches"]';
+// Marker class for branch names inside a PR's own conversation timeline (e.g. a
+// "merged commit X into <base>" or force-push event), rendered with GitHub's
+// classic (pre-React) markup: an outer ".commit-ref" span wrapping a
+// ".base-ref"/".head-ref" span, which itself wraps the actual
+// ".css-truncate-target" text span.
+const PR_TIMELINE_BRANCH_CLASS = "ght-pr-timeline-branch-ref";
 
 let branchColors = new Map();
 let progress = 0;
 let pullRequestDivs;
 let urls = new Set();
 let baseUrl;
+// The aggregate "https://github.com/pulls" dashboard lists PRs from many
+// different repos side by side, unlike a single repo's own "/pulls" page - so a
+// single global `baseUrl` (derived once from the current page's own URL) isn't
+// enough to build a correct ".../pull/<number>" link for the Commits button.
+// Track each PR's own repo base URL (e.g. "https://github.com/owner/repo")
+// individually instead, keyed by PR number - see collectURLs().
+let pullRequestBaseUrls = new Map();
 let branchMap = new Map();
 let modifiedTargetDivs = new Map();
 let promises = [];
@@ -69,28 +92,54 @@ function removeAllCommitsContent() {
 // without a full page reload, so this content script never gets re-injected.
 // Watch for DOM changes and re-run the tweak whenever the URL actually changes.
 // We also piggyback on this same observer to self-heal any branch info/skeletons
-// that GitHub's own React re-renders may have wiped out (see restoreBranchInfo).
+// that GitHub's own React re-renders may have wiped out (see restoreBranchInfo),
+// and to colorize (read-only, no picker) branch names inside GitHub's own PR
+// hovercard, the individual PR page's header, and its conversation timeline as
+// soon as they're rendered (see colorizeHovercardBranches/
+// colorizePrHeaderBranches/colorizePrTimelineBranches).
 new MutationObserver(function () {
     tweakIfUrlChanged();
     restoreBranchInfo();
+    colorizeHovercardBranches();
+    colorizePrHeaderBranches();
+    colorizePrTimelineBranches();
 }).observe(document.body, {childList: true, subtree: true});
 window.addEventListener("popstate", tweakIfUrlChanged);
 
-function tweak() {
-    let windowUrl = window.location.href;
+// The PR hovercard and an individual PR page's header/timeline aren't part of
+// the Pull Requests list, so they're not covered by tweak() above (which only
+// runs for "/pulls" URLs) - load branchColors independently and run an initial
+// pass in case any of them is already present on page load.
+loadBranchColorsThen(function () {
+    colorizeHovercardBranches();
+    colorizePrHeaderBranches();
+    colorizePrTimelineBranches();
+});
 
-    if (!windowUrl.includes("/pulls") || windowUrl.includes("github.com/pulls")) {
-        return;
-    }
-    window.initializeColorPickerSupport();
-    baseUrl = windowUrl.substring(0, windowUrl.lastIndexOf("/"));
-
+// Loads branchColors from storage, then runs the given callback. Shared by
+// tweak() (the Pull Requests list) and the standalone branch-colorizing features
+// below (PR hovercard, individual PR page header/timeline) that need up-to-date
+// colors but aren't tied to the list at all - see the call above.
+function loadBranchColorsThen(callback) {
     chrome.storage.local.get("branchColors", function (items) {
         if (items.branchColors) {
             let branchColorsJSON = Object.entries(JSON.parse(items.branchColors))
             branchColors = new Map(branchColorsJSON);
         }
+        callback();
+    });
+}
 
+function tweak() {
+    let windowUrl = window.location.href;
+
+    if (!windowUrl.includes("/pulls")) {
+        return;
+    }
+    window.initializeColorPickerSupport();
+    baseUrl = windowUrl.substring(0, windowUrl.lastIndexOf("/"));
+
+    loadBranchColorsThen(function () {
         promises = [];
         branchInfoByPullRequestNumber.clear();
         insertProgressBar();
@@ -484,6 +533,11 @@ function insertBranchSkeleton(url) {
 function collectURLs(pullRequestDiv) {
     let url = toRelativeUrl(getTitleLink(pullRequestDiv).getAttribute("href"));
     urls.add(url);
+
+    let pullRequestNumber = getPullRequestNumber(pullRequestDiv);
+    let suffix = "/pull/" + pullRequestNumber;
+    let repoPath = url.endsWith(suffix) ? url.slice(0, -suffix.length) : "";
+    pullRequestBaseUrls.set(pullRequestNumber, "https://github.com" + repoPath);
 }
 
 function modifyTargetDIVS(pullRequestDiv) {
@@ -782,7 +836,7 @@ function createBranchSpanElement(branchName) {
     branchSpanElement.dataset.branchName = branchName;
     branchSpanElement.addEventListener("click", function (event) {
         event.stopPropagation();
-        window.openBranchColorPicker(event.currentTarget, branchName, branchColors, getBranchColorStyle, persistBranchColors);
+        window.openBranchColorPicker(event.currentTarget, branchName, branchColors, computeBranchElementStyle, persistBranchColors);
     });
 
     branchSpanElement.appendChild(document.createTextNode(branchName));
@@ -801,6 +855,158 @@ function getBranchColorStyle(branchName, backgroundOverride, textOverride) {
 
     style += "max-width: 500px; font: 0.85em/1.7 ui-monospace,SFMono-Regular,SF Mono,Menlo,Consolas,Liberation Mono,monospace";
     return style;
+}
+
+// Same idea as getBranchColorStyle(), but for a branch name pill inside GitHub's
+// own PR hovercard instead of our PR list row. That hovercard already has its own
+// (non-monospace) font and relies on an explicit narrow "max-width" for its
+// "css-truncate-target" ellipsis truncation to kick in - reusing
+// getBranchColorStyle()'s wider max-width/monospace font would both break that
+// truncation and look visually inconsistent with the rest of the hovercard's text.
+// Read-only (no picker here), so no "cursor: pointer".
+function getHovercardBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
+    let style = "max-width: 140px;";
+
+    if (backgroundColor && textColor) {
+        style += "background-color: " + backgroundColor + "; color: " + textColor + ";";
+    }
+
+    return style;
+}
+
+// Same idea again, but for the base/head branch links inside an individual PR
+// page's own header. Unlike the other two, this is a plain GitHub link with no
+// pill-like padding/background of its own by default - only add those when a
+// custom color is actually set, so an unstyled branch keeps looking exactly like
+// GitHub's own default rendering.
+function getPrHeaderBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
+    let style = "";
+
+    if (backgroundColor && textColor) {
+        style += "background-color: " + backgroundColor + "; color: " + textColor + "; border-radius: 6px; padding: 0 6px;";
+    }
+
+    return style;
+}
+
+// Same idea again, but for branch names inside a PR's own conversation timeline
+// (see PR_TIMELINE_BRANCH_CLASS above). Like the PR page header, this sits inline
+// in plain GitHub text with no pill-like background of its own by default - only
+// add one when a custom color is actually set.
+function getPrTimelineBranchColorStyle(branchName, backgroundOverride, textOverride) {
+    let backgroundColor = backgroundOverride ?? branchColors.get(branchName)?.backgroundColor;
+    let textColor = textOverride ?? branchColors.get(branchName)?.textColor;
+    let style = "";
+
+    if (backgroundColor && textColor) {
+        style += "background-color: " + backgroundColor + "; color: " + textColor + "; border-radius: 6px; padding: 0 4px;";
+    }
+
+    return style;
+}
+
+// The color picker (opened only from our own PR list branch pills) restyles
+// every element sharing a given branch name, including read-only colorized
+// branches elsewhere on the page (GitHub's own PR hovercard, an individual PR
+// page's header, and its conversation timeline) - each of which needs a
+// different style computation (see getHovercardBranchColorStyle()/
+// getPrHeaderBranchColorStyle()/getPrTimelineBranchColorStyle() above). Dispatch
+// on the element actually being recolored rather than baking one style function
+// in at the call site, so a single color change re-styles every matching
+// element correctly.
+function computeBranchElementStyle(element, branchName, backgroundOverride, textOverride) {
+    if (element.classList.contains(HOVERCARD_BRANCH_CLASS)) {
+        return getHovercardBranchColorStyle(branchName, backgroundOverride, textOverride);
+    }
+    if (element.classList.contains(PR_HEADER_BRANCH_CLASS)) {
+        return getPrHeaderBranchColorStyle(branchName, backgroundOverride, textOverride);
+    }
+    if (element.classList.contains(PR_TIMELINE_BRANCH_CLASS)) {
+        return getPrTimelineBranchColorStyle(branchName, backgroundOverride, textOverride);
+    }
+    return getBranchColorStyle(branchName, backgroundOverride, textOverride);
+}
+
+// GitHub's PR hovercard (the popup shown when hovering a PR title link) is
+// fetched fresh via XHR and injected into the DOM each time it's shown, with its
+// base/head branch names rendered as "<span class='commit-ref ...' id='base-ref-
+// <id>'>"/"id='head-ref-<id>'" elements. Recolor them the same way as our own PR
+// list branch pills, matching branchColors by name - read-only, no picker (the
+// color picker is only available from the PR list itself).
+function colorizeHovercardBranches() {
+    let selector = 'span.commit-ref[id^="base-ref-"]:not(.' + HOVERCARD_BRANCH_CLASS + '), '
+        + 'span.commit-ref[id^="head-ref-"]:not(.' + HOVERCARD_BRANCH_CLASS + ')';
+    document.querySelectorAll(selector).forEach(function (span) {
+        let branchName = span.textContent.trim();
+        if (!branchName) {
+            return;
+        }
+        span.classList.add(HOVERCARD_BRANCH_CLASS);
+        span.dataset.branchName = branchName;
+        span.setAttribute("style", getHovercardBranchColorStyle(branchName));
+    });
+}
+
+// An individual PR page's own header ("<user> merged/wants to merge N commits
+// into <base> from <head>") renders the base/head branch names as real links to
+// each branch's file tree. Recolor them (read-only, no picker) - a normal click
+// still navigates through to the branch as usual, since we don't attach any
+// listener here.
+function colorizePrHeaderBranches() {
+    let selector = PR_HEADER_BRANCHES_CONTAINER_SELECTOR
+        + ' a[data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + ')';
+    document.querySelectorAll(selector).forEach(function (link) {
+        let branchName = link.textContent.trim();
+        if (!branchName) {
+            return;
+        }
+        link.classList.add(PR_HEADER_BRANCH_CLASS);
+        link.dataset.branchName = branchName;
+        link.setAttribute("style", getPrHeaderBranchColorStyle(branchName));
+    });
+}
+
+// A PR's conversation timeline shows branch names inline in various events
+// ("merged commit X into <base>", force-pushes, etc.), using GitHub's classic
+// nested ".commit-ref" markup (see PR_TIMELINE_BRANCH_CLASS above) rather than
+// the newer components used elsewhere on the page. Recolor them (read-only, no
+// picker).
+function colorizePrTimelineBranches() {
+    // Style the *outer* ".commit-ref" wrapper, not the inner ".css-truncate-
+    // target" text span: GitHub's own default "pill" look (light blue
+    // background, padding, border-radius) for these classic timeline badges is
+    // painted on this outer element (and/or the ".base-ref"/".head-ref" one
+    // nested just inside it) - coloring only the innermost text span left that
+    // default background still visible around/behind our color. Exclude
+    // ".css-truncate-target" itself from the selector so this doesn't also match
+    // our own flat, single-element PR list pills or the hovercard's chips (both
+    // of which have "commit-ref" and "css-truncate-target" on the very same
+    // element, unlike this nested structure).
+    let selector = 'span.commit-ref:not(.css-truncate-target):not(.' + PR_TIMELINE_BRANCH_CLASS + ')';
+    document.querySelectorAll(selector).forEach(function (wrapper) {
+        let textSpan = wrapper.querySelector(".css-truncate-target");
+        let branchName = (textSpan || wrapper).textContent.trim();
+        if (!branchName) {
+            return;
+        }
+        wrapper.classList.add(PR_TIMELINE_BRANCH_CLASS);
+        wrapper.dataset.branchName = branchName;
+        wrapper.setAttribute("style", getPrTimelineBranchColorStyle(branchName));
+        // Clear out GitHub's own default background/text color on the nested
+        // ".base-ref"/".head-ref"/".css-truncate-target" spans so they don't
+        // paint their own color underneath/around ours - only needs doing once,
+        // since we never touch these nested elements again afterwards (later
+        // recolors only update the outer wrapper's style, see
+        // computeBranchElementStyle).
+        wrapper.querySelectorAll(".base-ref, .head-ref, .css-truncate-target").forEach(function (nested) {
+            nested.style.backgroundColor = "transparent";
+            nested.style.color = "inherit";
+        });
+    });
 }
 
 function createTextSpanElement(innerText) {
@@ -836,7 +1042,7 @@ function createButton(branchName, pullRequestNumber, idPrefix, imagePath, onClic
     button.setAttribute("style", BUTTON_STYLE);
     button.setAttribute("title", branchName);
     button.appendChild(createImage(imagePath));
-    button.dataset.url = baseUrl + "/pull/" + pullRequestNumber;
+    button.dataset.url = (pullRequestBaseUrls.get(pullRequestNumber) || baseUrl) + "/pull/" + pullRequestNumber;
     button.onclick = onClickAction
 
     return button;
