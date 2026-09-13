@@ -1,12 +1,14 @@
 # <img src="public/icons/github-mark.png" width="45" align="left"> GitHub Tweaker
 
-GitHub Tweaker
+GitHub Tweaker saves you the constant hovering over Pull Request links just to see the source and target branches — it shows them right on the Pull Requests list, at a glance.
 
 ## Features
 
-- Enhance readability of GitHub 'Pull Requests' page by displaying branch sources
-- Ability to colorize branches
-- Buttons to get Commits and Check list on 'Pull Requests' page
+- See source → target branch names directly in the PR list, no hovering required
+- One-click "Commits" button to preview a PR's commit list without leaving the page
+- Color-code branches for instant visual recognition, right from the PR list
+- Import/Export your branch colors to back them up or share across machines
+- Dark theme for the Options page
 
 ## Install
 
