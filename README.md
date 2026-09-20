@@ -5,8 +5,9 @@ GitHub Tweaker saves you the constant hovering over Pull Request links just to s
 ## Features
 
 - See source → target branch names directly in the PR list, no hovering required
-- One-click "Commits" button to preview a PR's commit list without leaving the page
-- Color-code branches for instant visual recognition, right from the PR list
+- One-click "Commits" button to preview a PR's commit list without leaving the page — also works on the aggregate `/pulls` dashboard across multiple repos
+- Color-code branches for instant visual recognition, right from the PR list, with a picker for quick recoloring
+- Branch colors also show up wherever branch names appear on GitHub: hovercards, PR page headers and timelines, merge boxes, a repo's branch/tree compare bar, and its Actions workflow runs list
 - Import/Export your branch colors to back them up or share across machines
 - Dark theme for the Options page
 
