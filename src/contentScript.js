@@ -17,7 +17,10 @@ const ON = "_on";
 const OFF = "_off";
 // Selector for a PR row in GitHub's newer React-based Pull Requests list UI
 // (CSS Modules class names get a random hash suffix, hence the `*=` match).
-const NEW_UI_ROW_SELECTOR = 'li[class*="PullsListItem-module__listItem"]';
+// GitHub has since dropped the "<Component>-module__" prefix (class names are now
+// just "listItem__<hash>"), so also match any <li> holding a PR title link.
+const NEW_UI_ROW_SELECTOR = 'li[class*="PullsListItem-module__listItem"], li:has(> div a[data-testid="listitem-title-link"])';
+const NEW_UI_DESCRIPTION_SELECTOR = 'div[class*="Description-module__container"], div[class*="description__"]';
 // Marker class for the base/head branch names inside GitHub's own PR hovercard
 // (the popup that appears when hovering a PR title link). Distinguishes them from
 // our own branch pills in the PR list, which need a different (non-truncating)
@@ -27,7 +30,8 @@ const HOVERCARD_BRANCH_CLASS = "ght-hovercard-branch-ref";
 // header ("<user> merged/wants to merge ... into <base> from <head>").
 const PR_HEADER_BRANCH_CLASS = "ght-pr-header-branch-ref";
 // CSS Modules class names get a random hash suffix, hence the `*=` match.
-const PR_HEADER_BRANCHES_CONTAINER_SELECTOR = 'div[class*="PullRequestHeaderBranches-module__branches"]';
+// GitHub has since dropped the "<Component>-module__" prefix (now just "branches__<hash>").
+const PR_HEADER_BRANCHES_CONTAINER_SELECTOR = ':is(div[class*="PullRequestHeaderBranches-module__branches"], div[class*="branches__"])';
 // Marker class for branch names inside a PR's own conversation timeline (e.g. a
 // "merged commit X into <base>" or force-push event), rendered with GitHub's
 // classic (pre-React) markup: an outer ".commit-ref" span wrapping a
@@ -53,6 +57,9 @@ let baseUrl;
 // individually instead, keyed by PR number - see collectURLs().
 let pullRequestBaseUrls = new Map();
 let branchMap = new Map();
+// GitHub's branch labels can themselves contain ":" (e.g. "owner:branch"), so
+// the base/head pair stored in branchMap can't be joined/split on that.
+const BRANCH_SEPARATOR = "\n";
 let modifiedTargetDivs = new Map();
 let promises = [];
 
@@ -336,7 +343,7 @@ function toRelativeUrl(href) {
 }
 
 function getDescriptionDiv(pullRequestDiv) {
-    return pullRequestDiv.querySelector('div[class*="Description-module__container"]');
+    return pullRequestDiv.querySelector(NEW_UI_DESCRIPTION_SELECTOR);
 }
 
 function insertBranchInfo(descriptionDiv, branchSpanElement) {
@@ -603,7 +610,7 @@ function createHttpRequest(method, url) {
                 let baseBranch = getBaseBranch(xhr.response);
                 let comparingBranch = getComparingBranch(xhr.response);
                 incrementProgress();
-                branchMap.set(url, baseBranch + ":" + comparingBranch);
+                branchMap.set(url, baseBranch + BRANCH_SEPARATOR + comparingBranch);
             } else {
                 reject({
                     status: xhr.status,
@@ -697,8 +704,7 @@ function finalizeBranchInfoForUrl(url) {
         return;
     }
 
-    let baseBranch = branchMap.get(url).split(":")[0];
-    let comparingBranch = branchMap.get(url).split(":")[1];
+    let [baseBranch, comparingBranch] = branchMap.get(url).split(BRANCH_SEPARATOR);
 
     if (isNewUI(pullRequestDiv)) {
         setBranchInfoState(pullRequestNumber, {done: true, baseBranch, comparingBranch});
@@ -1018,6 +1024,12 @@ function colorizePrHeaderBranches() {
         + ' a[data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + '), '
         + 'a[class*="ClosedOrMergedStateMergeBox-module__branchName"][data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + '), '
         + '[data-testid="branch-info-bar"] [data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + ')';
+    // The merge box's own hashed class name keeps getting renamed by GitHub, so on
+    // a PR page also match every BranchName link structurally - they all refer to
+    // this PR's base/head branches (header, sticky header, merge box).
+    if (location.pathname.includes("/pull/")) {
+        selector += ', a[data-component="BranchName"]:not(.' + PR_HEADER_BRANCH_CLASS + ')';
+    }
     document.querySelectorAll(selector).forEach(function (element) {
         let branchName = element.textContent.trim();
         if (!branchName) {
@@ -1238,15 +1250,16 @@ function onClickCommitsButton(button) {
 // in a browser. Since that never happens here, they'd otherwise sit there animating
 // forever with no real data ever arriving - so just strip them out instead.
 function removeDeferredSkeletons(commitsDiv) {
-    commitsDiv.querySelectorAll('[class*="LoadingSkeleton-module__skeleton"]').forEach(function (skeleton) {
+    commitsDiv.querySelectorAll('[class*="LoadingSkeleton-module__skeleton"], [class*="skeleton__"]').forEach(function (skeleton) {
         skeleton.remove();
     });
 
-    // Without a resolved timestamp (removed above), the standalone "committed"
+    // Without a resolved timestamp (removed above), the standalone "committed"/"authored"
     // label that normally sits right before it - with nothing following it now -
     // looks incomplete/dangling on its own. Drop it too.
     commitsDiv.querySelectorAll("span").forEach(function (span) {
-        if (span.textContent.trim() !== "committed") {
+        let label = span.textContent.trim();
+        if (label !== "committed" && label !== "authored") {
             return;
         }
         let container = span.parentElement;
